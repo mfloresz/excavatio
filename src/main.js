@@ -1,7 +1,39 @@
-import { createApp } from 'vue'
+import { createApp, watchEffect } from 'vue'
 import './assets/main.css'
 import App from './App.vue'
 import { registerProviders } from '@aivue/core'
+import { useSettings } from './stores/settings'
+
+const { settings } = useSettings()
+
+function initTheme() {
+  const stored = localStorage.getItem('biblex_settings')
+  let theme = 'dark'
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored)
+      theme = parsed.theme || 'dark'
+    } catch (e) {}
+  }
+  settings.theme = theme
+  if (typeof document !== 'undefined') {
+    document.documentElement.classList.remove('dark')
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark')
+    }
+  }
+}
+
+initTheme()
+
+watchEffect(() => {
+  if (typeof document !== 'undefined') {
+    document.documentElement.classList.remove('dark')
+    if (settings.theme === 'dark') {
+      document.documentElement.classList.add('dark')
+    }
+  }
+})
 
 registerProviders({
   chutes: {

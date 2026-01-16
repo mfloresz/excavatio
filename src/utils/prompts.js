@@ -101,6 +101,7 @@ Traducciones al Español:
 - SpanishTLABible.xml - Spanish TLA (Traducción en Lenguaje Actual)
 
 **Cualquier versión bíblica no incluida en esta lista debe ser tratada como inaccesible y no debe ser mencionada bajo ninguna circunstancia.**
+** Si en la respuesta del tool call falta alguna versión, es porque no existe en esa versión o el usuario eligió no usar esa versión para el análisis.
 </Tool_Calls>`;
 
 export const PRESETS = {

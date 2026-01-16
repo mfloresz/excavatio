@@ -134,6 +134,75 @@ async function getBibleVerses(requests) {
   return results.join('\n---\n\n');
 }
 
+async function searchBible(query, version = null, limit = 10) {
+  const versions = version ? [version] : [
+    'GreekSBLGNTBible.xml',
+    'GreekBYZ18Bible.xml',
+    'GreekTCGNTBible.xml',
+    'SpanishNBLABible.xml',
+    'SpanishRVR1960Bible.xml',
+    'SpanishTLABible.xml'
+  ];
+  
+  const results = [];
+  const lowerQuery = query.toLowerCase();
+  
+  for (const ver of versions) {
+    const content = await getBibleFile(ver);
+    if (!content) continue;
+    
+    const xmlDoc = parseBibleXMLToDoc(content);
+    const books = xmlDoc.querySelectorAll('book');
+    
+    for (const book of books) {
+      const bookNum = book.getAttribute('number');
+      const chapters = book.querySelectorAll('chapter');
+      
+      for (const chapter of chapters) {
+        const chapterNum = chapter.getAttribute('number');
+        const verses = chapter.querySelectorAll('verse');
+        
+        for (const verse of verses) {
+          const verseNum = verse.getAttribute('number');
+          const text = verse.textContent || '';
+          
+          if (text.toLowerCase().includes(lowerQuery)) {
+            results.push({
+              version: ver.replace('.xml', ''),
+              book: parseInt(bookNum),
+              chapter: parseInt(chapterNum),
+              verse: parseInt(verseNum),
+              text: text
+            });
+            
+            if (results.length >= limit) {
+              break;
+            }
+          }
+        }
+        
+        if (results.length >= limit) break;
+      }
+      
+      if (results.length >= limit) break;
+    }
+    
+    if (results.length >= limit) break;
+  }
+  
+  let formattedResult = `### Resultados de búsqueda: "${query}"\n\n`;
+  for (const r of results) {
+    const bookName = BOOKS[r.book]?.name || `Libro ${r.book}`;
+    formattedResult += `**${r.version} - ${bookName} ${r.chapter}:${r.verse}**\n${r.text}\n\n`;
+  }
+  
+  if (results.length === 0) {
+    formattedResult += 'No se encontraron resultados.';
+  }
+  
+  return formattedResult;
+}
+
 async function* streamWithTools(messages, apiKey, model, temperature, maxTokens) {
   const tools = getToolsForProvider('chutes');
 
@@ -166,6 +235,23 @@ async function* streamWithTools(messages, apiKey, model, temperature, maxTokens)
   let buffer = '';
   let toolCalls = [];
   let currentToolCall = null;
+  let inToolCallText = false;
+  let toolCallTextBuffer = '';
+
+  const TOOL_CALL_PATTERNS = [
+    /<function_calls>/i,
+    /<\/function_calls>/i,
+    /<invoke\s+/i,
+    /<\/invoke>/i,
+    /<parameter\s+/i,
+    /<\/parameter>/i,
+    /<tool_call/i,
+    /<\/tool_call>/i,
+  ];
+
+  function isToolCallText(content) {
+    return TOOL_CALL_PATTERNS.some(pattern => pattern.test(content));
+  }
 
   try {
     while (true) {
@@ -186,7 +272,24 @@ async function* streamWithTools(messages, apiKey, model, temperature, maxTokens)
             const choice = data.choices?.[0];
 
             if (choice?.delta?.content) {
-              yield choice.delta.content;
+              const content = choice.delta.content;
+              
+              if (isToolCallText(content)) {
+                inToolCallText = true;
+                toolCallTextBuffer += content;
+                continue;
+              }
+              
+              if (inToolCallText) {
+                toolCallTextBuffer += content;
+                if (!isToolCallText(toolCallTextBuffer)) {
+                  inToolCallText = false;
+                  toolCallTextBuffer = '';
+                }
+                continue;
+              }
+              
+              yield content;
             }
 
             if (choice?.delta?.tool_calls) {
@@ -234,72 +337,96 @@ async function* streamWithTools(messages, apiKey, model, temperature, maxTokens)
     reader.releaseLock();
   }
 
-  for (const toolCall of toolCalls) {
-    if (toolCall.function.name === 'get_bible_verses') {
+  if (toolCalls.length > 0) {
+    const toolMessages = [
+      ...messages,
+      { role: 'assistant', content: '', tool_calls: toolCalls },
+    ];
+
+    for (const toolCall of toolCalls) {
       try {
-        const args = JSON.parse(toolCall.function.arguments);
-        const requests = args.requests;
+        if (toolCall.function.name === 'get_bible_verses') {
+          const args = JSON.parse(toolCall.function.arguments);
+          const requests = args.requests;
 
-        yield '\n\n*Consultando versículos bíblicos...*\n\n';
+          yield '\n\n*Consultando versículos bíblicos...*\n\n';
 
-        const toolResult = await getBibleVerses(requests);
+          const toolResult = await getBibleVerses(requests);
+          toolMessages.push({
+            role: 'tool',
+            content: toolResult,
+            tool_call_id: toolCall.id
+          });
+        } else if (toolCall.function.name === 'search_bible') {
+          const args = JSON.parse(toolCall.function.arguments);
+          const { query, version, limit } = args;
 
-        const toolMessages = [
-          ...messages,
-          { role: 'assistant', content: '', tool_calls: toolCalls },
-          { role: 'tool', content: toolResult, tool_call_id: toolCall.id },
-        ];
+          yield '\n\n*Buscando en la Biblia...*\n\n';
 
-        const followUpRes = await fetch(CHUTES_API_URL, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model,
-            messages: toolMessages,
-            stream: true,
-            max_tokens: maxTokens,
-            temperature,
-          }),
-        });
-
-        if (!followUpRes.ok) {
-          const err = await followUpRes.text();
-          throw new Error(`Follow-up error: ${followUpRes.status} - ${err}`);
-        }
-
-        const followReader = followUpRes.body?.getReader();
-        if (followReader) {
-          let fBuffer = '';
-          try {
-            while (true) {
-              const { done, value } = await followReader.read();
-              if (done) break;
-              fBuffer += decoder.decode(value, { stream: true });
-              const fLines = fBuffer.split('\n');
-              fBuffer = fLines.pop() || '';
-              for (const fLine of fLines) {
-                const fTrim = fLine.trim();
-                if (!fTrim || fTrim === 'data: [DONE]') continue;
-                if (fTrim.startsWith('data: ')) {
-                  try {
-                    const fData = JSON.parse(fTrim.slice(6));
-                    if (fData.choices?.[0]?.delta?.content) {
-                      yield fData.choices[0].delta.content;
-                    }
-                  } catch (e) {}
-                }
-              }
-            }
-          } finally {
-            followReader.releaseLock();
-          }
+          const toolResult = await searchBible(query, version, limit);
+          toolMessages.push({
+            role: 'tool',
+            content: toolResult,
+            tool_call_id: toolCall.id
+          });
         }
       } catch (e) {
         console.error('Tool call error:', e);
-        yield `\n\n*Error: ${e instanceof Error ? e.message : 'Unknown'}*\n\n`;
+        const errorMessage = `Error: ${e instanceof Error ? e.message : 'Unknown'}`;
+        toolMessages.push({
+          role: 'tool',
+          content: errorMessage,
+          tool_call_id: toolCall.id
+        });
+        yield `\n\n*${errorMessage}*\n\n`;
+      }
+    }
+
+    const followUpRes = await fetch(CHUTES_API_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        messages: toolMessages,
+        stream: true,
+        max_tokens: maxTokens,
+        temperature,
+      }),
+    });
+
+    if (!followUpRes.ok) {
+      const err = await followUpRes.text();
+      throw new Error(`Follow-up error: ${followUpRes.status} - ${err}`);
+    }
+
+    const followReader = followUpRes.body?.getReader();
+    if (followReader) {
+      let fBuffer = '';
+      try {
+        while (true) {
+          const { done, value } = await followReader.read();
+          if (done) break;
+          fBuffer += decoder.decode(value, { stream: true });
+          const fLines = fBuffer.split('\n');
+          fBuffer = fLines.pop() || '';
+          for (const fLine of fLines) {
+            const fTrim = fLine.trim();
+            if (!fTrim || fTrim === 'data: [DONE]') continue;
+            if (fTrim.startsWith('data: ')) {
+              try {
+                const fData = JSON.parse(fTrim.slice(6));
+                if (fData.choices?.[0]?.delta?.content) {
+                  yield fData.choices[0].delta.content;
+                }
+              } catch (e) {}
+            }
+          }
+        }
+      } finally {
+        followReader.releaseLock();
       }
     }
   }
@@ -307,7 +434,7 @@ async function* streamWithTools(messages, apiKey, model, temperature, maxTokens)
 
 export function useChatEngine() {
   const { settings, getCurrentApiKey, getCurrentParams, getCurrentProvider, getCurrentModel } = useSettings();
-  const { addMessage, getMessages } = useChat();
+  const { addMessage, getMessages, updateMessage } = useChat();
 
   const isLoading = ref(false);
   const error = ref(null);
@@ -376,8 +503,11 @@ export function useChatEngine() {
       }
 
       let fullResponse = '';
+      let assistantMessageId = null;
 
       if (client.isCustom) {
+        assistantMessageId = addMessage('assistant', '', null);
+        
         const generator = streamWithTools(
           allMessages,
           apiKey,
@@ -390,23 +520,31 @@ export function useChatEngine() {
           if (abortController?.signal.aborted) break;
           fullResponse += token;
           streamingContent.value = fullResponse;
+          
+          if (assistantMessageId) {
+            updateMessage(assistantMessageId, { content: fullResponse });
+          }
         }
 
         streamingContent.value = '';
-        addMessage('assistant', fullResponse);
         toolCalls.value = [];
       } else {
         client.chatStream(
           allMessages,
           {
-            onStart: () => {},
+            onStart: () => {
+              assistantMessageId = addMessage('assistant', '', null);
+            },
             onToken: (token) => {
               fullResponse += token;
               streamingContent.value = fullResponse;
+              if (assistantMessageId) {
+                updateMessage(assistantMessageId, { content: fullResponse });
+              }
             },
             onComplete: () => {
               streamingContent.value = '';
-              addMessage('assistant', fullResponse);
+              toolCalls.value = [];
             },
             onError: (err) => {
               error.value = err.message;

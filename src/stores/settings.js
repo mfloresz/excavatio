@@ -8,22 +8,22 @@ const defaultSettings = {
   streaming: true,
   activePreset: 'scripture_excavator',
   systemPrompt: null,
-  selectedBibles: ['SpanishNBLABible', 'SpanishRVR1960Bible', 'SpanishTLABible'],
+  theme: 'dark',
+  selectedBibles: ['AramaicBible', 'GreekBYZ18Bible', 'GreekSBLGNTBible', 'GreekTCGNTBible', 'HebrewAleppoCodexBible', 'HebrewLeningradCodexBible', 'SpanishNBLABible', 'SpanishRVR1960Bible', 'SpanishTLABible'],
   providers: {
     chutes: {
       apiKey: '',
       models: {
         'deepseek-ai/DeepSeek-V3.2-TEE': { temperature: 0.7, maxTokens: 64000 },
-        'openai/gpt-oss-120b-TEE': { temperature: 0.7, maxTokens: 128000 }
+        'openai/gpt-oss-120b-TEE': { temperature: 0.7, maxTokens: 128000 },
+        'moonshotai/Kimi-K2-Instruct-0905': { temperature: 0.7, maxTokens: 262000 }
       }
     },
     openai: {
       apiKey: '',
       models: {
-        'gpt-4o': { temperature: 0.7, maxTokens: 4096 },
-        'gpt-4o-mini': { temperature: 0.7, maxTokens: 4096 },
-        'gpt-4-turbo': { temperature: 0.7, maxTokens: 8192 },
-        'gpt-3.5-turbo': { temperature: 0.7, maxTokens: 4096 }
+        'gpt-4.1-nano-2025-04-14': { temperature: 0.7, maxTokens: 32000 },
+        'gpt-4.1-mini-2025-04-14': { temperature: 0.7, maxTokens: 32000 },
       }
     },
     anthropic: {
@@ -88,6 +88,7 @@ function loadSettings() {
       settings.streaming = parsed.streaming ?? defaultSettings.streaming;
       settings.activePreset = parsed.activePreset || defaultSettings.activePreset;
       settings.systemPrompt = parsed.systemPrompt;
+      settings.theme = parsed.theme || defaultSettings.theme;
       settings.selectedBibles = parsed.selectedBibles || defaultSettings.selectedBibles;
 
       if (parsed.providers) {
@@ -200,6 +201,15 @@ export function useSettings() {
     if (updates.streaming !== undefined) settings.streaming = updates.streaming;
     if (updates.activePreset) settings.activePreset = updates.activePreset;
     if (updates.systemPrompt !== undefined) settings.systemPrompt = updates.systemPrompt;
+    if (updates.theme) settings.theme = updates.theme;
+  }
+
+  function setTheme(theme) {
+    settings.theme = theme;
+  }
+
+  function getTheme() {
+    return settings.theme;
   }
 
   function resetSettings() {
@@ -223,6 +233,8 @@ export function useSettings() {
     toggleBible,
     isBibleSelected,
     updateSettings,
-    resetSettings
+    resetSettings,
+    setTheme,
+    getTheme
   };
 }

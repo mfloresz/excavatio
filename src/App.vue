@@ -1,27 +1,30 @@
 <template>
-  <div class="app-container">
-    <div class="main-content">
-      <ChatWindow
-        title="Scripture Excavator"
-        @toggle-sidebar="showConversationList = true"
-        @open-settings="showSettings = true"
-      />
+    <div class="min-h-screen bg-background text-foreground">
+        <div class="flex h-screen">
+            <div class="flex-1 flex items-center justify-center p-5">
+                <ChatWindow
+                    class="w-full max-w-[900px] h-[90vh]"
+                    title="Scripture Excavator"
+                    @toggle-sidebar="showConversationList = true"
+                    @open-settings="showSettings = true"
+                />
+            </div>
+
+            <ConversationList
+                v-model="showConversationList"
+                @conversation-selected="onConversationSelected"
+            />
+
+            <SettingsPanel
+                v-model="showSettings"
+            />
+
+            <BibleDownloader
+                v-model="showBibleDownloader"
+                @complete="onBibleDownloadComplete"
+            />
+        </div>
     </div>
-
-    <ConversationList
-      v-model="showConversationList"
-      @conversation-selected="onConversationSelected"
-    />
-
-    <SettingsPanel
-      v-model="showSettings"
-    />
-
-    <BibleDownloader
-      v-model="showBibleDownloader"
-      @complete="onBibleDownloadComplete"
-    />
-  </div>
 </template>
 
 <script setup>
@@ -44,62 +47,28 @@ const showSettings = ref(false);
 const showBibleDownloader = ref(false);
 
 async function checkBibles() {
-  if (!isInitialized.value) {
-    await initialize();
-  }
+    if (!isInitialized.value) {
+        await initialize();
+    }
 
-  const downloaded = await isAllDownloaded();
-  if (!downloaded) {
-    showBibleDownloader.value = true;
-  }
+    const downloaded = await isAllDownloaded();
+    if (!downloaded) {
+        showBibleDownloader.value = true;
+    }
 }
 
 function onConversationSelected() {
 }
 
 function onBibleDownloadComplete() {
-  console.log('Bibles downloaded successfully');
+    console.log('Bibles downloaded successfully');
 }
 
 onMounted(async () => {
-  await checkBibles();
+    await checkBibles();
 
-  if (settings.apiKey && !settings.apiKey.startsWith('placeholder')) {
-    createConversation();
-  }
+    if (settings.apiKey && !settings.apiKey.startsWith('placeholder')) {
+        createConversation();
+    }
 });
 </script>
-
-<style scoped>
-.app-container {
-  display: flex;
-  height: 100vh;
-  background: #121212;
-  overflow: hidden;
-}
-
-.main-content {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
-
-.main-content > * {
-  width: 100%;
-  max-width: 900px;
-  height: 90vh;
-}
-
-@media (max-width: 768px) {
-  .main-content {
-    padding: 10px;
-  }
-
-  .main-content > * {
-    height: 100vh;
-    max-width: 100%;
-  }
-}
-</style>

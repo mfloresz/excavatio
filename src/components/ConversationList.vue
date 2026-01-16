@@ -1,57 +1,61 @@
 <template>
-  <Teleport to="body">
-    <div v-if="show" class="sidebar-overlay" @click.self="close">
-      <div class="sidebar">
-        <div class="sidebar-header">
-          <h2>Historial</h2>
-          <button class="new-chat-btn" @click="createNewChat">
-            <span>+</span> Nueva conversación
-          </button>
-          <button class="close-btn" @click="close">×</button>
-        </div>
+    <Teleport to="body">
+        <div v-if="show" class="fixed inset-0 bg-black/30 flex z-40" @click.self="close">
+            <div class="w-80 h-full bg-sidebar text-sidebar-foreground flex flex-col border-r border-border animate-in slide-in-from-left-4">
+                <div class="flex items-center gap-3 p-5 border-b border-border">
+                    <h2 class="flex-1 text-lg font-semibold">Historial</h2>
+                    <button class="flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground border-none rounded-lg text-sm font-medium cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5" @click="createNewChat">
+                        <span class="text-lg">+</span> Nueva
+                    </button>
+                    <button class="text-muted-foreground hover:text-foreground text-2xl cursor-pointer p-2" @click="close">×</button>
+                </div>
 
-        <div class="search-container">
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Buscar conversaciones..."
-            class="search-input"
-          />
-        </div>
+                <div class="p-4 border-b border-border">
+                    <input
+                        v-model="searchQuery"
+                        type="text"
+                        placeholder="Buscar conversaciones..."
+                        class="w-full px-3 py-2.5 bg-background border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                </div>
 
-        <div class="conversations-list">
-          <div
-            v-for="conv in filteredConversations"
-            :key="conv.id"
-            class="conversation-item"
-            :class="{ active: conv.id === currentConversationId }"
-            @click="selectConversation(conv.id)"
-          >
-            <div class="conv-info">
-              <span class="conv-title">{{ conv.title }}</span>
-              <span class="conv-date">{{ formatDate(conv.updatedAt) }}</span>
+                <div class="flex-1 overflow-y-auto p-3">
+                    <div
+                        v-for="conv in filteredConversations"
+                        :key="conv.id"
+                        class="flex items-center gap-3 p-3 bg-accent/50 rounded-lg mb-2 cursor-pointer transition-all border border-transparent"
+                        :class="[
+                            conv.id === currentConversationId
+                                ? 'bg-sidebar-accent border-sidebar-accent'
+                                : 'hover:bg-accent'
+                        ]"
+                        @click="selectConversation(conv.id)"
+                    >
+                        <div class="flex-1 min-w-0">
+                            <span class="block text-sm font-medium truncate">{{ conv.title }}</span>
+                            <span class="block text-xs text-muted-foreground mt-1">{{ formatDate(conv.updatedAt) }}</span>
+                        </div>
+                        <button class="text-muted-foreground hover:text-destructive cursor-pointer p-1 opacity-0 group-hover:opacity-100 transition-opacity" @click.stop="deleteConversation(conv.id)">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="3 6 5 6 21 6"/>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div v-if="filteredConversations.length === 0" class="text-center py-10 text-muted-foreground">
+                        <p>No hay conversaciones</p>
+                    </div>
+                </div>
+
+                <div class="p-4 border-t border-border">
+                    <button class="w-full py-2.5 bg-secondary text-secondary-foreground border-none rounded-lg text-sm cursor-pointer transition-colors hover:bg-secondary/80" @click="exportAll">
+                        Exportar historial
+                    </button>
+                </div>
             </div>
-            <button class="delete-btn" @click.stop="deleteConversation(conv.id)">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="3 6 5 6 21 6"/>
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-              </svg>
-            </button>
-          </div>
-
-          <div v-if="filteredConversations.length === 0" class="empty-state">
-            <p>No hay conversaciones</p>
-          </div>
         </div>
-
-        <div class="sidebar-footer">
-          <button class="export-btn" @click="exportAll">
-            Exportar historial
-          </button>
-        </div>
-      </div>
-    </div>
-  </Teleport>
+    </Teleport>
 </template>
 
 <script setup>
@@ -59,10 +63,10 @@ import { ref, computed, watch } from 'vue';
 import { useChat } from '../stores/chat';
 
 const props = defineProps({
-  modelValue: {
-    type: Boolean,
-    default: false
-  }
+    modelValue: {
+        type: Boolean,
+        default: false
+    }
 });
 
 const emit = defineEmits(['update:modelValue', 'conversation-selected']);
@@ -73,244 +77,57 @@ const show = ref(false);
 const searchQuery = ref('');
 
 const filteredConversations = computed(() => {
-  if (!searchQuery.value.trim()) {
-    return conversationList.value;
-  }
-  return searchConversations(searchQuery.value);
+    if (!searchQuery.value.trim()) {
+        return conversationList.value;
+    }
+    return searchConversations(searchQuery.value);
 });
 
 const currentConversationId = computed(() => {
-  return null;
+    return null;
 });
 
 function formatDate(timestamp) {
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diff = now - date;
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diff = now - date;
 
-  if (diff < 86400000) {
-    return date.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
-  } else if (diff < 604800000) {
-    return date.toLocaleDateString('es-MX', { weekday: 'short' });
-  } else {
-    return date.toLocaleDateString('es-MX', { month: 'short', day: 'numeric' });
-  }
+    if (diff < 86400000) {
+        return date.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+    } else if (diff < 604800000) {
+        return date.toLocaleDateString('es-MX', { weekday: 'short' });
+    } else {
+        return date.toLocaleDateString('es-MX', { month: 'short', day: 'numeric' });
+    }
 }
 
 function createNewChat() {
-  createConversation();
-  emit('conversation-selected');
-  close();
+    createConversation();
+    emit('conversation-selected');
+    close();
 }
 
 function close() {
-  show.value = false;
-  emit('update:modelValue', false);
+    show.value = false;
+    emit('update:modelValue', false);
 }
 
 function exportAll() {
-  const data = JSON.stringify(conversationList.value, null, 2);
-  const blob = new Blob([data], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `biblex-conversations-${new Date().toISOString().split('T')[0]}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
+    const data = JSON.stringify(conversationList.value, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `biblex-conversations-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
 }
 
 watch(() => props.modelValue, (val) => {
-  show.value = val;
+    show.value = val;
 });
 
 watch(show, (val) => {
-  emit('update:modelValue', val);
+    emit('update:modelValue', val);
 });
 </script>
-
-<style scoped>
-.sidebar-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.3);
-  z-index: 900;
-  display: flex;
-}
-
-.sidebar {
-  width: 320px;
-  height: 100%;
-  background: #1e1e1e;
-  display: flex;
-  flex-direction: column;
-  animation: slideIn 0.3s ease;
-}
-
-@keyframes slideIn {
-  from { transform: translateX(-100%); }
-  to { transform: translateX(0); }
-}
-
-.sidebar-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 20px;
-  border-bottom: 1px solid #333;
-}
-
-.sidebar-header h2 {
-  margin: 0;
-  flex: 1;
-  font-size: 1.2rem;
-  color: #e0e0e0;
-}
-
-.new-chat-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  background: linear-gradient(135deg, #4a6da7, #6b8fc7);
-  border: none;
-  border-radius: 8px;
-  color: white;
-  cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 600;
-  transition: transform 0.2s;
-}
-
-.new-chat-btn:hover {
-  transform: translateY(-2px);
-}
-
-.new-chat-btn span {
-  font-size: 1.2rem;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  color: #888;
-  font-size: 1.5rem;
-  cursor: pointer;
-  padding: 8px;
-}
-
-.search-container {
-  padding: 12px 20px;
-  border-bottom: 1px solid #333;
-}
-
-.search-input {
-  width: 100%;
-  padding: 10px 12px;
-  background: #2d2d30;
-  border: 1px solid #333;
-  border-radius: 8px;
-  color: #e0e0e0;
-  font-size: 0.9rem;
-}
-
-.search-input:focus {
-  outline: none;
-  border-color: #4a6da7;
-}
-
-.conversations-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 12px;
-}
-
-.conversation-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 8px;
-  margin-bottom: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.conversation-item:hover {
-  background: rgba(255, 255, 255, 0.06);
-}
-
-.conversation-item.active {
-  background: rgba(74, 109, 167, 0.2);
-  border: 1px solid #4a6da7;
-}
-
-.conv-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.conv-title {
-  display: block;
-  color: #e0e0e0;
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.conv-date {
-  display: block;
-  font-size: 0.75rem;
-  color: #888;
-  margin-top: 4px;
-}
-
-.delete-btn {
-  background: none;
-  border: none;
-  color: #666;
-  cursor: pointer;
-  padding: 4px;
-  opacity: 0;
-  transition: all 0.2s;
-}
-
-.conversation-item:hover .delete-btn {
-  opacity: 1;
-}
-
-.delete-btn:hover {
-  color: #f44336;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 40px 20px;
-  color: #666;
-}
-
-.sidebar-footer {
-  padding: 16px 20px;
-  border-top: 1px solid #333;
-}
-
-.export-btn {
-  width: 100%;
-  padding: 10px;
-  background: #333;
-  border: none;
-  border-radius: 8px;
-  color: #e0e0e0;
-  cursor: pointer;
-  font-size: 0.9rem;
-  transition: background 0.2s;
-}
-
-.export-btn:hover {
-  background: #444;
-}
-</style>
