@@ -1,19 +1,18 @@
 <template>
     <div class="min-h-screen bg-background text-foreground">
         <div class="flex h-screen">
+            <ConversationList
+                class="w-80 h-full flex-shrink-0 border-r border-border"
+                @conversation-selected="onConversationSelected"
+            />
+
             <div class="flex-1 flex items-center justify-center p-5">
                 <ChatWindow
-                    class="w-full max-w-[900px] h-[90vh]"
+                    class="w-full h-[90vh]"
                     title="Scripture Excavator"
-                    @toggle-sidebar="showConversationList = true"
                     @open-settings="showSettings = true"
                 />
             </div>
-
-            <ConversationList
-                v-model="showConversationList"
-                @conversation-selected="onConversationSelected"
-            />
 
             <SettingsPanel
                 v-model="showSettings"
@@ -42,7 +41,6 @@ const { initialize, isInitialized } = useBible();
 const { createConversation } = useChat();
 const { settings } = useSettings();
 
-const showConversationList = ref(false);
 const showSettings = ref(false);
 const showBibleDownloader = ref(false);
 

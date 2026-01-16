@@ -7,11 +7,6 @@
             </div>
             <div class="flex items-center gap-2">
                 <ThemeToggle />
-                <button class="p-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-all cursor-pointer" @click="$emit('toggle-sidebar')" title="Historial">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                </button>
                 <button class="p-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-all cursor-pointer" @click="$emit('open-settings')" title="Configuración">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="12" cy="12" r="3"/>
@@ -120,7 +115,7 @@ const props = defineProps({
     }
 });
 
-const emit = defineEmits(['toggle-sidebar', 'open-settings']);
+const emit = defineEmits(['open-settings']);
 
 const { isLoading, sendMessage, streamingContent, renderMarkdown, toolCalls } = useChatEngine();
 const { currentConversation } = useChat();
