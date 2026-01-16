@@ -62,7 +62,6 @@
                                     step="256"
                                     class="w-full px-3 py-2.5 bg-background border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring max-w-[150px]"
                                 />
-                                <span class="block text-xs text-muted-foreground mt-1">Límites: DeepSeek V3.2: 64K, GPT-OSS: 128K</span>
                             </div>
 
                             <div class="flex items-center">

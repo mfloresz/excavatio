@@ -1,4 +1,7 @@
 node_modules
-docs
+readme-npmjs-page
+VueAI.wiki
 .vite
 dist
+bun.lock
+package-lock.json
